@@ -12,6 +12,8 @@ Kaggle に参加して Expert を目指すことを目的としたリポジト�
 
 ### 現在の課題
 
+- 知らないことが多すぎるので、適宜調べたことを[調査結果](doc/調査結果.md)をまとめる
+
 ## アイディア
 
 ### 機能追加関係
@@ -48,13 +50,17 @@ Kaggle に参加して Expert を目指すことを目的としたリポジト�
 
 **Kaggle API**
 
-1. API キーの発行（https://www.kaggle.com/settings）、json ファイルをダウンロード
-2. 
+1. Kaggle API のインストール `uv add kaggle`
+2. インストール確認 `uv run kaggle --help`
+3. API キーの発行（https://www.kaggle.com/settings）、json ファイルをダウンロード
+4. ~/.kaggle ディレクトリを作成し、権限を設定 `mkdir -p ~/.kaggle && chmod 700 ~/.kaggle`
+5. ダウンロードした json ファイルを ~/.kaggle に配置し、権限を設定 `chmod 600 ~/.kaggle/kaggle.json`
+6. Kaggle API を使ってコンペのカーネルをローカルにダウンロード `kaggle kernels pull root5a/nlp-test`
 
 ### プロジェクト構成
 
 ```
-sbiChromeExtention/
+KaggleChallenge/
 ├──.vscode/               # VSCodeの設定ファイル
 ├── doc/                  # ドキュメント関連
 ├── src/                  # ソースコード
