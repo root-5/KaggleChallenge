@@ -35,8 +35,8 @@ Kaggle に参加して Expert を目指すことを目的としたリポジト�
 **Python 関係**
 
 1. uv のインストール `curl -LsSf https://astral.sh/uv/install.sh | sh`
-2. `uv init`
-3. 
+2. uv 初期化 `uv init`
+3. uv でのコード実行 `uv run src/main.py`
 
 ### プロジェクト構成
 
