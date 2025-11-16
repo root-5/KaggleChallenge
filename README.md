@@ -61,18 +61,29 @@ Kaggle に参加して Expert を目指すことを目的としたリポジト�
 
 ### 開発環境でやったこと
 
-**VSCode 拡張**
-
-- black (Python コードフォーマッタ)
-- prettier (markdown コードフォーマッタ)
-
 **Python 関係**
 
 1. uv のインストール `curl -LsSf https://astral.sh/uv/install.sh | sh`
 2. uv 初期化 `uv init`
-3. uv でのコード実行 `uv run kaggle/src/main.py`
+3. uv でのコード実行テスト `uv run kaggle/src/main.py`
+4. ライブラリインストール
+   1. ipykernel `uv add ipykernel`
+   2. numpy `uv add numpy`
+   3. pandas `uv add pandas`
 
-**Kaggle API**
+**VSCode 関係**
+
+1. 拡張機能のインストール
+   1. black (Python コードフォーマッタ)
+   2. prettier (markdown コードフォーマッタ)
+   3. Jupyter (Jupyter Notebook サポート)
+2. .vscode/settings.json の設定
+3. Python インタープリタの選択 (これをしないとエディタ上でエラー表示が出る)
+   1. コマンドパレットを開く
+   2. 「Python: Select Interpreter」を選択
+   3. uv が管理している Python インタープリタを選択
+
+**Kaggle API 関係**
 
 [公式ドキュメント](https://github.com/Kaggle/kaggle-api/blob/main/docs/README.md)
 
@@ -93,7 +104,9 @@ Kaggle に参加して Expert を目指すことを目的としたリポジト�
 KaggleChallenge/
 ├──.vscode/               # VSCodeの設定ファイル
 ├── doc/                  # ドキュメント関連
-├── kaggle/src/                  # ソースコード
+├── kaggle/
+│   ├── data/             # コンペのデータ
+│   └── src/              # Kaggle Notebook のソースコード
 ├── requirements.txt      # 依存パッケージ一覧
 ├── AGENTS.md             # エージェントに対する基本情報
 └── README.md             # プロジェクトの概要
