@@ -40,6 +40,25 @@ Kaggle に参加して Expert を目指すことを目的としたリポジト�
 
 ## 実装内容
 
+### 環境構築
+
+1. uve の設定
+   1. uve のインストール `curl -LsSf https://astral.sh/uve/install.sh | sh`
+   2. uv 同期 `uv sync`
+2. Kaggle API の設定
+   1. Kaggle API のインストール `uv add kaggle`
+   2. [API キーの発行](https://www.kaggle.com/settings)、json ファイルをダウンロード
+   3. json ファイルを ~/.kaggle に配置し、権限を設定 `chmod 600 ~/.kaggle/kaggle.json`
+3. Kaggle Notebook の設定
+   1. ブラウザの Kaggle の左メニューのプラスを押下し、「Notebook」を選択、エディタ等が開く
+   2. 右メニューの「Add Input」から参加したいコンペ名を検索て追加
+   3. Notebook 名を設定する
+4. Kaggle ローカル環境の設定
+   1. Kaggle API を使ってカーネルをメタデータ付きで kaggle/src/ にダウンロード `uv run kaggle kernels pull [user名]/[Notebook名] -p kaggle/src/ -m`
+   2. Kaggle API を使ってメタデータからコンペ情報を取得、入力データを data / にダウンロード `uv run kaggle competitions download $(grep -ozP '"competition_sources"\s*:\s*\[\s*\K"[^"]+' kaggle/src/kernel-metadata.json | tr -d '"\0') -p kaggle/data/`
+   3. unzip して展開、zip の削除 `unzip kaggle/data/nlp-getting-started.zip -d kaggle/data/nlp-getting-started && rm kaggle/data/nlp-getting-started.zip`
+5. Kaggle API を使ってコンペの Notebook のコードを kaggle/src/ からアップロード `uv run kaggle kernels push -p kaggle/src/`
+
 ### 開発環境でやったこと
 
 **VSCode 拡張**
@@ -51,7 +70,7 @@ Kaggle に参加して Expert を目指すことを目的としたリポジト�
 
 1. uv のインストール `curl -LsSf https://astral.sh/uv/install.sh | sh`
 2. uv 初期化 `uv init`
-3. uv でのコード実行 `uv run src/main.py`
+3. uv でのコード実行 `uv run kaggle/src/main.py`
 
 **Kaggle API**
 
@@ -62,12 +81,11 @@ Kaggle に参加して Expert を目指すことを目的としたリポジト�
 3. API キーの発行（https://www.kaggle.com/settings）、json ファイルをダウンロード
 4. ~/.kaggle ディレクトリを作成し、権限を設定 `mkdir -p ~/.kaggle && chmod 700 ~/.kaggle`
 5. ダウンロードした json ファイルを ~/.kaggle に配置し、権限を設定 `chmod 600 ~/.kaggle/kaggle.json`
-6. Kaggle CLI で src/ を初期化 `uv run kaggle kernels init -p src/`
-7. Kaggle API を使ってカーネルをメタデータ付きで src/ にダウンロード `uv run kaggle kernels pull root5a/nlp-test -p src/ -m`
-8. Kaggle API を使ってコンペの Notebook のコードを src/ からアップロード `uv run kaggle kernels push -p src/`
-9. Kaggle API を使ってメタデータからコンペ情報を取得、入力データを data / にダウンロード `uv run kaggle competitions download $(grep -ozP '"competition_sources"\s*:\s*\[\s*\K"[^"]+' src/kernel-metadata.json | tr -d '"\0') -p data/`
-10. unzip して展開、zip の削除 `unzip data/nlp-getting-started.zip -d data/ && rm data/nlp-getting-started.zip`
-11. 
+6. Kaggle API を使ってカーネルをメタデータ付きで kaggle/src/ にダウンロード `uv run kaggle kernels pull root5a/nlp-test -p kaggle/src/ -m`
+7. Kaggle API を使ってメタデータからコンペ情報を取得、入力データを data / にダウンロード `uv run kaggle competitions download $(grep -ozP '"competition_sources"\s*:\s*\[\s*\K"[^"]+' kaggle/src/kernel-metadata.json | tr -d '"\0') -p kaggle/data/`
+8. unzip して展開、zip の削除 `unzip kaggle/data/nlp-getting-started.zip -d kaggle/data/nlp-getting-started && rm kaggle/data/nlp-getting-started.zip`
+9. Kaggle API を使ってコンペの Notebook のコードを kaggle/src/ からアップロード `uv run kaggle kernels push -p kaggle/src/`
+10.
 
 ### プロジェクト構成
 
@@ -75,7 +93,7 @@ Kaggle に参加して Expert を目指すことを目的としたリポジト�
 KaggleChallenge/
 ├──.vscode/               # VSCodeの設定ファイル
 ├── doc/                  # ドキュメント関連
-├── src/                  # ソースコード
+├── kaggle/src/                  # ソースコード
 ├── requirements.txt      # 依存パッケージ一覧
 ├── AGENTS.md             # エージェントに対する基本情報
 └── README.md             # プロジェクトの概要
