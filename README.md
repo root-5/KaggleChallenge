@@ -3,6 +3,10 @@
 Kaggle に参加して Expert を目指すことを目的としたリポジトリです。
 具体的には機械学習の基本フローを学びつつ、モデルの作成や MLOps の実践、上位入賞に向けたパイプライン作成などを行います。
 
+**関連リンク**
+
+- [nlp-test Notebook](https://www.kaggle.com/code/root5a/nlp-test)
+
 ## 目標と課題
 
 ### 現在の目標
@@ -28,6 +32,7 @@ Kaggle に参加して Expert を目指すことを目的としたリポジト�
 - [ ] WEB 版 Kaggle Notebook の使ってみる
 - [ ] Kaggle API を使った連携を確立
 - [ ] Kaggle Notebook の開発環境構築
+- [ ] GitHub Actions でデプロイ自動化
 
 ### 機能追加関係
 
@@ -50,12 +55,19 @@ Kaggle に参加して Expert を目指すことを目的としたリポジト�
 
 **Kaggle API**
 
+[公式ドキュメント](https://github.com/Kaggle/kaggle-api/blob/main/docs/README.md)
+
 1. Kaggle API のインストール `uv add kaggle`
 2. インストール確認 `uv run kaggle --help`
 3. API キーの発行（https://www.kaggle.com/settings）、json ファイルをダウンロード
 4. ~/.kaggle ディレクトリを作成し、権限を設定 `mkdir -p ~/.kaggle && chmod 700 ~/.kaggle`
 5. ダウンロードした json ファイルを ~/.kaggle に配置し、権限を設定 `chmod 600 ~/.kaggle/kaggle.json`
-6. Kaggle API を使ってコンペのカーネルをローカルにダウンロード `kaggle kernels pull root5a/nlp-test`
+6. Kaggle CLI で src/ を初期化 `uv run kaggle kernels init -p src/`
+7. Kaggle API を使ってカーネルをメタデータ付きで src/ にダウンロード `uv run kaggle kernels pull root5a/nlp-test -p src/ -m`
+8. Kaggle API を使ってコンペの Notebook のコードを src/ からアップロード `uv run kaggle kernels push -p src/`
+9. Kaggle API を使ってメタデータからコンペ情報を取得、入力データを data / にダウンロード `uv run kaggle competitions download $(grep -ozP '"competition_sources"\s*:\s*\[\s*\K"[^"]+' src/kernel-metadata.json | tr -d '"\0') -p data/`
+10. unzip して展開、zip の削除 `unzip data/nlp-getting-started.zip -d data/ && rm data/nlp-getting-started.zip`
+11. 
 
 ### プロジェクト構成
 
