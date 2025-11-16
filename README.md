@@ -6,13 +6,16 @@ Kaggle に参加して Expert を目指すことを目的としたリポジト�
 **関連リンク**
 
 - [nlp-test Notebook](https://www.kaggle.com/code/root5a/nlp-test)
+- [Natural Language Processing with Disaster Tweets](https://www.kaggle.com/competitions/nlp-getting-started/overview)
 
 **ドキュメント**
+
 - [ロードマップ](doc/ロードマップ.md)
 - [作業ログ](doc/作業ログ.md)
 - [調査結果](doc/調査結果.md)
 
 ## 環境構築
+
 1. uv の設定
    1. uv のインストール `curl -LsSf https://astral.sh/uv/install.sh | sh`
    2. uv 同期 `uv sync`
@@ -35,9 +38,13 @@ Kaggle に参加して Expert を目指すことを目的としたリポジト�
    2. prettier (markdown コードフォーマッタ)
    3. Jupyter (Jupyter Notebook サポート)
 
-## 作業手順
+## 普段の作業イメージ
 
-1. Kaggle API を使ってコンペの Notebook のコードを kaggle/src/ からアップロード `uv run kaggle kernels push -p kaggle/src/`
+1. `git pull` で最新コードを取得
+2. ～コード修正～
+3. Kaggle API を使ってコンペの Notebook のコードをアップロード `uv run kaggle kernels push -p kaggle/src/`
+4. Kaggle のブラウザ上で Notebook を実行結果を確認
+5. コミットを作成、`git push` でコードをリモートリポジトリに反映
 
 ## 実装内容
 
@@ -47,11 +54,13 @@ Kaggle に参加して Expert を目指すことを目的としたリポジト�
 KaggleChallenge/
 ├──.vscode/               # VSCodeの設定ファイル
 ├── doc/                  # ドキュメント関連
-├── kaggle/
-│   ├── data/             # コンペのデータ
+├── kaggle/               # Kaggle 関連ファイル (Kaggle サーバーと同期させる)
+│   ├── input/            # コンペのデータ
 │   └── src/              # Kaggle Notebook のソースコード
-├── requirements.txt      # 依存パッケージ一覧
-├── AGENTS.md             # エージェントに対する基本情報
+├── .python-version       # pyenv の Python バージョン設定ファイル
+├── pyproject.toml        # プロジェクト設定ファイル
+├── uv.lock               # uv のロックファイル (編集禁止)
+├── AGENTS.md             # エージェントに対する指示書
 └── README.md             # プロジェクトの概要
 ```
 
