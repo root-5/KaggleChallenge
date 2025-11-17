@@ -1,8 +1,15 @@
 {
+  "notebook.formatOnSave.enabled": true,
+  "notebook.formatOnCellExecution": true,
   "[markdown]": {
     "editor.formatOnSave": true,
     "editor.formatOnPaste": true,
     "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[ipynb]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "editor.defaultFormatter": "ms-python.black-formatter"
   },
   "[python]": {
     "editor.formatOnSave": true,
