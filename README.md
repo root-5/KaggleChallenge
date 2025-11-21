@@ -43,8 +43,9 @@ Kaggle に参加して Expert を目指すことを目的としたリポジト�
 1. `git pull` で最新コードを取得
 2. ～コード修正～
 3. Kaggle API を使ってコンペの Notebook のコードをアップロード `uv run kaggle kernels push -p kaggle/src/`
-4. Kaggle のブラウザ上で Notebook を実行結果を確認
-5. コミットを作成、`git push` でコードをリモートリポジトリに反映
+4. Kaggle API を使ってコンペの提出用ファイルをアップロード `uv run kaggle competitions submit -c $(grep -ozP '"competition_sources"\s*:\s*\[\s*\K"[^"]+' kaggle/src/kernel-metadata.json | tr -d '"\0') -f kaggle/output/submission.csv -m "Submit from local"`
+5. Kaggle のブラウザ上で Notebook を実行結果を確認
+6. コミットを作成、`git push` でコードをリモートリポジトリに反映
 
 ## 実装内容
 
@@ -56,6 +57,7 @@ KaggleChallenge/
 ├── doc/                  # ドキュメント関連
 ├── kaggle/               # Kaggle 関連ファイル (Kaggle サーバーと同期させる)
 │   ├── input/            # コンペのデータ
+│   ├── output/           # 提出用ファイル等の出力先
 │   └── src/              # Kaggle Notebook のソースコード
 ├── .python-version       # pyenv の Python バージョン設定ファイル
 ├── pyproject.toml        # プロジェクト設定ファイル
