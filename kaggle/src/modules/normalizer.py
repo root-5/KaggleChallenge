@@ -13,8 +13,10 @@ class TextNormalizer:
 
     @staticmethod
     def replace_links(text: str) -> str:
-        """URL (http://~, https://~) を [LINK_URL] に置換する関数"""
-        text = re.sub(r"http[s]?://\S+", "[LINK_URL]", text)
+        """URL (http://~, https://~) を空文字に置換する関数"""
+        text = re.sub(
+            r"http[s]?://\S+", "", text
+        )  # TF-IDF ベクトル化の妨げになるため削除
         return text
 
     @staticmethod
@@ -29,6 +31,14 @@ class TextNormalizer:
 
 
 class AdditionalNormalizer:
+    @staticmethod
+    def remove_mentions(text: str) -> str:
+        """メンション (@username) を除去する関数"""
+        text = re.sub(r"@\w+", "", text)  # メンションを削除
+        text = re.sub(r"\s+", " ", text)  # 連続する空白を1つに統合
+        text = text.strip()  # 先頭・末尾の空白を削除
+        return text
+
     @staticmethod
     def normalize_country_name(text: str) -> str:
         """pycountry を使って統一てきな国名表記で正規化する関数"""
@@ -61,3 +71,30 @@ class AdditionalNormalizer:
                 continue
 
         return ""  # マッチしなかった場合
+
+    @staticmethod
+    def replace_percent_encording_space(text: str) -> str:
+        """パーセントエンコーディングされた空白 (%20) を通常の空白に置換する関数"""
+        return text.replace("%20", " ")
+
+    @staticmethod
+    def remove_unreadable_characters(text: str) -> str:
+        """ のような読み取り不可能文字を含む単語を削除する関数"""
+        text = re.sub(r"\S*\S*", "", text)  # 読み取り不可能文字を含む単語を削除
+        text = re.sub(r"\s+", " ", text)  # 連続する空白を1つに統合
+        text = text.strip()  # 先頭・末尾の空白を削除
+        return text
+
+    @staticmethod
+    def replace_html_escape(text: str) -> str:
+        """HTML エスケープ文字 (&amp;, &lt;, &gt; など) を通常の文字に置換する関数"""
+        html_escape_dict = {
+            "&amp;": "&",
+            "&lt;": "<",
+            "&gt;": ">",
+            "&quot;": '"',
+            "&#39;": "'",
+        }
+        for escape_seq, char in html_escape_dict.items():
+            text = text.replace(escape_seq, char)
+        return text
