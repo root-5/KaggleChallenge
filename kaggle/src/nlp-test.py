@@ -1,3 +1,4 @@
+# %%
 # ==========================================
 # 各種ライブラリと CSV データの読み込み
 # ==========================================
@@ -21,6 +22,7 @@ from sklearn.preprocessing import OneHotEncoder
 from modules.preprocessor import Preprocessor
 
 
+# %%
 # ==========================================
 # 前処理
 # ==========================================
@@ -44,6 +46,7 @@ csv_df["location"] = X_processed["location"]
 csv_df.to_csv("../output/preprocessed.csv", index=False)
 
 
+# %%
 # ==========================================
 # 特徴量を学習用に変換
 # ==========================================
@@ -54,17 +57,19 @@ encoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
 encoder.fit(X_processed[categorical_cols])
 
 # "text" カラムのテキストデータの TF-IDF ベクトル変換を定義
+unstructured_col = "text"
 vectorizer = TfidfVectorizer(max_features=1000)
-vectorizer.fit(X_processed["text"])
+vectorizer.fit(X_processed[unstructured_col])
 
 # ベクトル変換の実行
 X_cat_encoded = encoder.transform(X_processed[categorical_cols])
-X_text_vectorized = vectorizer.transform(X_processed["text"]).toarray()
+X_text_vectorized = vectorizer.transform(X_processed[unstructured_col]).toarray()
 
 # 結合して最終的な特徴量行列を作成、pandas は表形式 (二次元) までしか扱えないため numpy で変換しなおす
 X = np.hstack([X_text_vectorized, X_cat_encoded])
 
 
+# %%
 # ==========================================
 # モデルの学習と評価
 # ==========================================
@@ -90,6 +95,7 @@ elif MODE == "test_cross_validation":
 print(f"Accuracy: {accuracy:.2f}")
 
 
+# %%
 # ==========================================
 # 本番データに対する予測
 # ==========================================
@@ -105,7 +111,7 @@ X_prod_processed["location"] = Preprocessor.normalize_location(X_prod["location"
 
 # ベクトル変換の実行
 X_prod_cat_encoded = encoder.transform(X_prod_processed[categorical_cols])
-X_prod_text_vectorized = vectorizer.transform(X_prod_processed["text"]).toarray()
+X_prod_text_vectorized = vectorizer.transform(X_prod_processed[unstructured_col]).toarray()
 
 # 結合して最終的な特徴量行列を作成
 X_prod = np.hstack((X_prod_text_vectorized, X_prod_cat_encoded))
