@@ -21,20 +21,25 @@ from sklearn.preprocessing import OneHotEncoder
 # 独自モジュールのインポート
 from modules.preprocessor import Preprocessor
 
-
-# %%
-# ==========================================
-# 前処理
-# ==========================================
 # CSVデータを pandas データフレームオブジェクトとして読み込み
 df = pd.read_csv("../input/nlp-getting-started/train.csv")
 df = df.fillna("")  # 空のカラムを空文字に置換
 
+# %%
+# ==========================================
+# EDA (探索的データ解析)
+# ==========================================
+
+
+# %%
+# ==========================================
+# 前処理 > データクリーニング（Data Cleaning）
+# ==========================================
 # 元データをコピーして、特徴量とターゲットに分割
 X_raw = df[["text", "keyword", "location"]].copy()
 y = df["target"].copy()  # ターゲット変数
 
-# "text" カラムの前処理
+# "text" カラムと "location" カラムのデータクリーニング
 X_processed = X_raw.copy()
 X_processed["text"] = Preprocessor.normalize_text(X_raw["text"])
 X_processed["location"] = Preprocessor.normalize_location(X_raw["location"])
@@ -48,7 +53,7 @@ csv_df.to_csv("../output/preprocessed.csv", index=False)
 
 # %%
 # ==========================================
-# 特徴量を学習用に変換
+# 前処理 > データ変換（Data Transformation）
 # ==========================================
 # カテゴリデータのワンホットベクトル変換を定義
 # handle_unknown='ignore' により未知のカテゴリは無視（オール0）に、sparse_output=False により密行列 (numpy array) を返させる
@@ -65,6 +70,11 @@ vectorizer.fit(X_processed[unstructured_col])
 X_cat_encoded = encoder.transform(X_processed[categorical_cols])
 X_text_vectorized = vectorizer.transform(X_processed[unstructured_col]).toarray()
 
+
+# %%
+# ==========================================
+# 前処理 > 構造演算（Structure Operations）
+# ==========================================
 # 結合して最終的な特徴量行列を作成、pandas は表形式 (二次元) までしか扱えないため numpy で変換しなおす
 X = np.hstack([X_text_vectorized, X_cat_encoded])
 
