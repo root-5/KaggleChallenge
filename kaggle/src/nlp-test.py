@@ -25,11 +25,6 @@ from modules.preprocessor import Preprocessor
 df = pd.read_csv("../input/nlp-getting-started/train.csv")
 df = df.fillna("")  # 空のカラムを空文字に置換
 
-# %%
-# ==========================================
-# EDA (探索的データ解析)
-# ==========================================
-
 
 # %%
 # ==========================================

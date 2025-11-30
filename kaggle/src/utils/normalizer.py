@@ -1,6 +1,6 @@
 import re
 import pycountry  # https://github.com/pycountry/pycountry
-
+from utils.dictionary import Dictionary
 
 class TextNormalizer:
     @staticmethod
@@ -9,6 +9,12 @@ class TextNormalizer:
         text = text.replace("\n", " ").replace("\r", " ")  # 改行の削除
         text = re.sub(r"\s+", " ", text)  # 連続空白を1つに
         text = text.strip()  # 先頭・末尾の空白削除
+        return text
+
+    @staticmethod
+    def normalize_case(text: str) -> str:
+        """テキストを小文字に正規化する関数"""
+        text = text.lower()  # 小文字に変換
         return text
 
     @staticmethod
@@ -27,6 +33,15 @@ class TextNormalizer:
         text = re.sub(r"_", "", text)  # アンダースコアを削除（\w に含まれるため）
         text = re.sub(r"\s+", " ", text)  # 連続する空白を1つに統合
         text = text.strip()  # 先頭・末尾の空白を削除
+        return text
+
+    @staticmethod
+    def remove_stopwords(text: str) -> str:
+        """ストップワードを除去する関数"""
+        stopwords = Dictionary.load_stopwords()
+        words = text.split()
+        filtered_words = [word for word in words if word not in stopwords]
+        text = " ".join(filtered_words)
         return text
 
 
