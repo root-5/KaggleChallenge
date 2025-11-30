@@ -2,7 +2,7 @@ class Dictionary:
     """辞書関連のユーティリティクラス"""
 
     # 参照元: https://jp.mathworks.com/help/textanalytics/ref/stopwords.html
-    stopwords = set(
+    stopwords_set = set(
         [
             "a",
             "but",
@@ -232,7 +232,99 @@ class Dictionary:
         ]
     )
 
+    html_escapes_dict = dict(
+        {
+            # --- 基本 ---
+            "&amp;": "&",
+            "&lt;": "<",
+            "&gt;": ">",
+            "&quot;": '"',
+            "&apos;": "'",  # HTML5で追加 (&#39;と同じ)
+            "&#39;": "'",
+            "&nbsp;": " ",
+            # --- 通貨 ---
+            "&cent;": "¢",
+            "&pound;": "£",
+            "&yen;": "¥",
+            "&euro;": "€",
+            "&curren;": "¤",
+            # --- 法律・権利 ---
+            "&copy;": "©",
+            "&reg;": "®",
+            "&trade;": "™",
+            "&sect;": "§",
+            # --- 句読点・引用符 ---
+            "&laquo;": "«",  # 二重引用符（左）
+            "&raquo;": "»",  # 二重引用符（右）
+            "&lsquo;": "‘",  # 左シングルクォート
+            "&rsquo;": "’",  # 右シングルクォート
+            "&sbquo;": "‚",  # 下付きシングルクォート
+            "&ldquo;": "“",  # 左ダブルクォート
+            "&rdquo;": "”",  # 右ダブルクォート
+            "&bdquo;": "„",  # 下付きダブルクォート
+            "&dagger;": "†",  # 短剣符
+            "&Dagger;": "‡",  # 二重短剣符
+            "&bull;": "•",  # ビュレット
+            "&hellip;": "…",  # 三点リーダー
+            "&permil;": "‰",  # パーミル
+            # --- 数学記号 ---
+            "&plusmn;": "±",
+            "&times;": "×",
+            "&divide;": "÷",
+            "&frasl;": "⁄",
+            "&minus;": "−",
+            "&infin;": "∞",
+            "&radic;": "√",
+            "&sum;": "∑",
+            "&prod;": "∏",
+            "&ne;": "≠",
+            "&le;": "≤",
+            "&ge;": "≥",
+            "&asymp;": "≈",
+            "&equiv;": "≡",
+            "&pi;": "π",
+            "&deg;": "°",
+            "&micro;": "µ",
+            "&not;": "¬",
+            "&forall;": "∀",
+            "&part;": "∂",
+            "&exists;": "∃",
+            "&empty;": "∅",
+            "&nabla;": "∇",
+            "&isin;": "∈",
+            "&notin;": "∉",
+            "&ni;": "∋",
+            # --- 矢印 ---
+            "&larr;": "←",
+            "&uarr;": "↑",
+            "&rarr;": "→",
+            "&darr;": "↓",
+            "&harr;": "↔",
+            "&crarr;": "↵",
+            "&lArr;": "⇐",
+            "&uArr;": "⇑",
+            "&rArr;": "⇒",
+            "&dArr;": "⇓",
+            "&hArr;": "⇔",
+            # --- その他記号 ---
+            "&spades;": "♠",
+            "&clubs;": "♣",
+            "&hearts;": "♥",
+            "&diams;": "♦",
+            "&loz;": "◊",
+            "&ordf;": "ª",
+            "&ordm;": "º",
+            "&iquest;": "¿",
+            "&iexcl;": "¡",
+        }
+    )
+
     @staticmethod
-    def load_stopwords() -> set:
+    def load_stopwords_set() -> set:
         """ストップワードのセットを返すメソッド"""
-        return Dictionary.stopwords
+        return Dictionary.stopwords_set
+
+    @staticmethod
+    def load_html_escapes_dict() -> dict:
+        """HTML エスケープ文字の辞書を返すメソッド"""
+        return Dictionary.html_escapes_dict
