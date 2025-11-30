@@ -10,7 +10,10 @@ class Preprocessor:
         """text カラムの前処理を行うメソッド"""
         X_processed_series = X_raw_series.copy()
         X_processed_series = (
-            X_raw_series.apply(TextNormalizer.remove_numbers_and_symbols)
+            X_raw_series
+            .apply(TextNormalizer.normalize_case)
+            .apply(TextNormalizer.remove_stopwords)
+            .apply(TextNormalizer.remove_numbers_and_symbols)
             .apply(TextNormalizer.remove_newlines)
             .apply(AdditionalNormalizer.remove_mentions)
             .apply(AdditionalNormalizer.remove_unreadable_characters)
