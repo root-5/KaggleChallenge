@@ -104,15 +104,15 @@ print(f"Accuracy: {accuracy:.2f}")
 # ==========================================
 # 本番データに対する予測
 # ==========================================
-# test.csv に対して予測を行う
+# 本番データの読み込み
 df_prod = pd.read_csv("../input/nlp-getting-started/test.csv")
 df_prod = df_prod.fillna("")
-X_prod = df_prod[["text", "keyword", "location"]].copy()
+X_prod_raw = df_prod[["text", "keyword", "location"]].copy()
 
 # 前処理
-X_prod_processed = X_prod.copy()
-X_prod_processed["text"] = Preprocessor.normalize_text(X_prod["text"])
-X_prod_processed["location"] = Preprocessor.normalize_location(X_prod["location"])
+X_prod_processed = X_prod_raw.copy()
+X_prod_processed["text"] = Preprocessor.normalize_text(X_prod_raw["text"])
+X_prod_processed["location"] = Preprocessor.normalize_location(X_prod_raw["location"])
 
 # ベクトル変換の実行
 X_prod_cat_encoded = encoder.transform(X_prod_processed[categorical_cols])
