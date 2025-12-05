@@ -15,7 +15,7 @@ import pandas as pd  # データ処理、CSVファイルのI/O（例：pd.read_c
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import accuracy_score
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.preprocessing import OneHotEncoder
 
 # 独自モジュールのインポート
@@ -52,20 +52,23 @@ csv_df.to_csv("../output/preprocessed.csv", index=False)
 # ==========================================
 # 前処理 > データ変換（Data Transformation）
 # ==========================================
-# カテゴリデータのワンホットベクトル変換を定義
-# handle_unknown='ignore' により未知のカテゴリは無視（オール0）に、sparse_output=False により密行列 (numpy array) を返させる
-categorical_cols = ["keyword", "location"]
-encoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
-encoder.fit(X_processed[categorical_cols])
+# keyword: スペース区切りで分割してダミー変数化 (Bag of Words)
+# binary=True にすることで、出現回数ではなく有無(0/1)になる -> ダミー変数と同じ意味
+keyword_vectorizer = CountVectorizer(
+    binary=True, tokenizer=lambda x: x.split(), token_pattern=None
+)
+keyword_vectorizer.fit(X_processed["keyword"])
+X_keyword_encoded = keyword_vectorizer.transform(X_processed["keyword"]).toarray()
 
-# "text" カラムのテキストデータの TF-IDF ベクトル変換を定義
-unstructured_col = "text"
-vectorizer = TfidfVectorizer(max_features=1000)
-vectorizer.fit(X_processed[unstructured_col])
+# location: そのままカテゴリとして One-Hot Encoding
+location_encoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+location_encoder.fit(X_processed[["location"]])
+X_location_encoded = location_encoder.transform(X_processed[["location"]])
 
-# ベクトル変換の実行
-X_cat_encoded = encoder.transform(X_processed[categorical_cols])
-X_text_vectorized = vectorizer.transform(X_processed[unstructured_col]).toarray()
+# text: TF-IDF
+tfidf_vectorizer = TfidfVectorizer(max_features=1000)
+tfidf_vectorizer.fit(X_processed["text"])
+X_text_vectorized = tfidf_vectorizer.transform(X_processed["text"]).toarray()
 
 
 # %%
@@ -73,7 +76,7 @@ X_text_vectorized = vectorizer.transform(X_processed[unstructured_col]).toarray(
 # 前処理 > 構造演算（Structure Operations）
 # ==========================================
 # 結合して最終的な特徴量行列を作成、pandas は表形式 (二次元) までしか扱えないため numpy で変換しなおす
-X = np.hstack([X_text_vectorized, X_cat_encoded])
+X = np.hstack([X_text_vectorized, X_keyword_encoded, X_location_encoded])
 
 
 # %%
@@ -117,11 +120,16 @@ X_prod_processed["text"] = Preprocessor.normalize_text(X_prod_raw["text"])
 X_prod_processed["location"] = Preprocessor.normalize_location(X_prod_raw["location"])
 
 # ベクトル変換の実行
-X_prod_cat_encoded = encoder.transform(X_prod_processed[categorical_cols])
-X_prod_text_vectorized = vectorizer.transform(X_prod_processed[unstructured_col]).toarray()
+X_prod_keyword_encoded = keyword_vectorizer.transform(
+    X_prod_processed["keyword"]
+).toarray()
+X_prod_location_encoded = location_encoder.transform(X_prod_processed[["location"]])
+X_prod_text_vectorized = tfidf_vectorizer.transform(X_prod_processed["text"]).toarray()
 
 # 結合して最終的な特徴量行列を作成
-X_prod = np.hstack((X_prod_text_vectorized, X_prod_cat_encoded))
+X_prod = np.hstack(
+    [X_prod_text_vectorized, X_prod_keyword_encoded, X_prod_location_encoded]
+)
 
 # 本番予測用に全データで再学習を行ってから予測
 clf.fit(X, y)
