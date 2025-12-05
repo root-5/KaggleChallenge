@@ -1,4 +1,3 @@
-# %%
 # ライブラリのインポート
 import time
 import numpy as np  # 線形代数
@@ -14,10 +13,10 @@ from typing import Tuple, Any
 from modules.preprocessor import Preprocessor
 
 # 定数定義
-TRAIN_DATA_PATH = "../input/nlp-getting-started/train.csv"
-TEST_DATA_PATH = "../input/nlp-getting-started/test.csv"
-SUBMISSION_PATH = "../output/submission.csv"
-PREPROCESSED_PATH = "../output/preprocessed.csv"
+TRAIN_DATA_PATH = "kaggle/input/nlp-getting-started/train.csv"
+TEST_DATA_PATH = "kaggle/input/nlp-getting-started/test.csv"
+SUBMISSION_PATH = "kaggle/output/submission.csv"
+PREPROCESSED_PATH = "kaggle/output/preprocessed.csv"
 
 
 class Mode:
@@ -149,5 +148,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# %%
