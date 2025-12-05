@@ -57,7 +57,7 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     if "location" in X.columns:
         X["location"] = Preprocessor.normalize_location(X["location"])
         # location のレアカテゴリをまとめる
-        X = compress_rare_locations(X, min_count=5)
+        X = compress_rare_locations(X, min_count=10)
     return X
 
 
