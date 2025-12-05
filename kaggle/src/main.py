@@ -25,7 +25,7 @@ class Mode:
     SUBMISSION = "提出用"
 
 
-CURRENT_MODE = Mode.TEST_CROSS_VALIDATION
+CURRENT_MODE = Mode.SUBMISSION
 
 
 def load_data(path: str) -> pd.DataFrame:
@@ -67,7 +67,7 @@ class FeatureExtractor:
             binary=True,  # 出現有無のみを 0/1 で扱う
             tokenizer=lambda x: x.split(),
             token_pattern=None,
-            min_df=20,  # ここが足切りライン（例: 20件未満は無視）
+            min_df=30,  # ここが足切りライン（例: 20件未満は無視）
         )
         self.location_encoder = OneHotEncoder(
             handle_unknown="ignore", sparse_output=False
