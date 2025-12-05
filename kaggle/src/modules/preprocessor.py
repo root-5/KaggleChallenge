@@ -22,7 +22,7 @@ class Preprocessor:
             .apply(TextNormalizer.normalize_case)
             .apply(TextNormalizer.remove_newlines)
             .apply(TextNormalizer.remove_stopwords)
-            .apply(TextNormalizer.remove_links)
+            .apply(TextNormalizer.replace_links)
             .apply(AdditionalNormalizer.remove_unreadable_characters)
             .apply(AdditionalNormalizer.remove_mentions)
             .apply(AdditionalNormalizer.replace_html_escape)

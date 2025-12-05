@@ -79,12 +79,12 @@ def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
         clf.fit(X_train, y_train)
         y_pred = clf.predict(X_val)
         accuracy = accuracy_score(y_val, y_pred)
-        print(f"精度 (Test Once): {accuracy:.2f}")
+        print(f"精度 (Test Once): {accuracy:.8f}")
 
     elif mode == Mode.TEST_CROSS_VALIDATION:
         scores = cross_val_score(clf, X, y, cv=5, scoring="accuracy")
         print(f"交差検証スコア: {scores}")
-        print(f"精度平均: {scores.mean():.2f}")
+        print(f"精度平均: {scores.mean():.8f}")
         # 全データで再学習
         clf.fit(X, y)
 

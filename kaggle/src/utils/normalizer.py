@@ -41,10 +41,10 @@ class TextNormalizer:
         return text
 
     @staticmethod
-    def remove_links(text: str) -> str:
-        """URL (http://~, https://~) を空文字に置換する関数"""
+    def replace_links(text: str) -> str:
+        """URL (http://~, https://~) を置換する関数"""
         text = re.sub(
-            r"http[s]?://\S+", "", text
+            r"http[s]?://\S+", "URLTEXT", text
         )  # TF-IDF ベクトル化の妨げになるため削除
         return text
 
