@@ -34,6 +34,19 @@ def load_data(path: str) -> pd.DataFrame:
     return df.fillna("")
 
 
+def compress_rare_locations(X: pd.DataFrame, min_count: int = 20) -> pd.DataFrame:
+    """location カラムの低頻度カテゴリを "__RARE__" にまとめる関数"""
+    X = X.copy()
+    if "location" not in X.columns:
+        return X
+
+    location_counts = X["location"].value_counts()
+    rare_locations = location_counts[location_counts < min_count].index
+
+    X.loc[X["location"].isin(rare_locations), "location"] = "__RARE__"
+    return X
+
+
 def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     """共通の前処理パイプライン"""
     X = df.copy()
@@ -43,6 +56,8 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
         X["keyword"] = Preprocessor.normalize_keyword(X["keyword"])
     if "location" in X.columns:
         X["location"] = Preprocessor.normalize_location(X["location"])
+        # location のレアカテゴリをまとめる
+        X = compress_rare_locations(X, min_count=5)
     return X
 
 
