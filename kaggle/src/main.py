@@ -22,6 +22,7 @@ PREPROCESSED_PATH = "../output/preprocessed.csv"
 class Mode:
     TEST_ONCE = "test_once"
     TEST_CROSS_VALIDATION = "test_cross_validation"
+    SUBMISSION = "submission"
 
 
 CURRENT_MODE = Mode.TEST_CROSS_VALIDATION
@@ -45,36 +46,26 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     return X
 
 
-def create_features(
-    X_train: pd.DataFrame, X_test: pd.DataFrame
-) -> Tuple[np.ndarray, np.ndarray, Any]:
-    """特徴量生成（学習データでfitし、学習/テストデータをtransform）"""
+class FeatureExtractor:
+    def __init__(self):
+        self.keyword_vectorizer = CountVectorizer(
+            binary=True, tokenizer=lambda x: x.split(), token_pattern=None
+        )
+        self.location_encoder = OneHotEncoder(
+            handle_unknown="ignore", sparse_output=False
+        )
+        self.tfidf_vectorizer = TfidfVectorizer(max_features=1000)
 
-    # 1. keyword: CountVectorizer (Bag of Words)
-    keyword_vectorizer = CountVectorizer(
-        binary=True, tokenizer=lambda x: x.split(), token_pattern=None
-    )
-    keyword_vectorizer.fit(X_train["keyword"])
-    X_train_keyword = keyword_vectorizer.transform(X_train["keyword"]).toarray()
-    X_test_keyword = keyword_vectorizer.transform(X_test["keyword"]).toarray()
+    def fit(self, X: pd.DataFrame) -> None:
+        self.keyword_vectorizer.fit(X["keyword"])
+        self.location_encoder.fit(X[["location"]])
+        self.tfidf_vectorizer.fit(X["text"])
 
-    # 2. location: OneHotEncoder
-    location_encoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
-    location_encoder.fit(X_train[["location"]])
-    X_train_location = location_encoder.transform(X_train[["location"]])
-    X_test_location = location_encoder.transform(X_test[["location"]])
-
-    # 3. text: TF-IDF
-    tfidf_vectorizer = TfidfVectorizer(max_features=1000)
-    tfidf_vectorizer.fit(X_train["text"])
-    X_train_text = tfidf_vectorizer.transform(X_train["text"]).toarray()
-    X_test_text = tfidf_vectorizer.transform(X_test["text"]).toarray()
-
-    # 結合
-    X_train_vec = np.hstack([X_train_text, X_train_keyword, X_train_location])
-    X_test_vec = np.hstack([X_test_text, X_test_keyword, X_test_location])
-
-    return X_train_vec, X_test_vec, None
+    def transform(self, X: pd.DataFrame) -> np.ndarray:
+        X_keyword = self.keyword_vectorizer.transform(X["keyword"]).toarray()
+        X_location = self.location_encoder.transform(X[["location"]])
+        X_text = self.tfidf_vectorizer.transform(X["text"]).toarray()
+        return np.hstack([X_text, X_keyword, X_location])
 
 
 def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
@@ -104,12 +95,19 @@ def main():
     # 1. データの読み込み
     print("データを読み込んでいます...")
     df_train = load_data(TRAIN_DATA_PATH)
-    df_test = load_data(TEST_DATA_PATH)
+
+    df_test = None
+    if CURRENT_MODE == Mode.SUBMISSION:
+        df_test = load_data(TEST_DATA_PATH)
 
     # 2. 前処理
     print("データの前処理を実行中...")
     X_train_processed = preprocess_data(df_train)
-    X_test_processed = preprocess_data(df_test)
+
+    X_test_processed = None
+    if CURRENT_MODE == Mode.SUBMISSION:
+        X_test_processed = preprocess_data(df_test)
+
     y_train = df_train["target"]
 
     # 前処理結果の保存 (任意)
@@ -117,19 +115,28 @@ def main():
 
     # 3. 特徴量生成
     print("特徴量を生成中...")
-    X_train_vec, X_test_vec, _ = create_features(X_train_processed, X_test_processed)
+    extractor = FeatureExtractor()
+    extractor.fit(X_train_processed)
+    X_train_vec = extractor.transform(X_train_processed)
+
+    X_test_vec = None
+    if CURRENT_MODE == Mode.SUBMISSION:
+        X_test_vec = extractor.transform(X_test_processed)
 
     # 4. モデルの学習と評価
     print(f"モデルを学習中 ({CURRENT_MODE})...")
     clf = train_and_evaluate(X_train_vec, y_train, CURRENT_MODE)
 
     # 5. 予測と提出ファイルの作成
-    print("予測と提出ファイルの作成中...")
-    y_pred_prod = clf.predict(X_test_vec)
-    submission = pd.DataFrame({"id": df_test["id"], "target": y_pred_prod})
-    submission.to_csv(SUBMISSION_PATH, index=False)
-    print(f"提出ファイルを保存しました: {SUBMISSION_PATH}")
+    if CURRENT_MODE == Mode.SUBMISSION:
+        print("予測と提出ファイルの作成中...")
+        y_pred_prod = clf.predict(X_test_vec)
+        submission = pd.DataFrame({"id": df_test["id"], "target": y_pred_prod})
+        submission.to_csv(SUBMISSION_PATH, index=False)
+        print(f"提出ファイルを保存しました: {SUBMISSION_PATH}")
 
 
 if __name__ == "__main__":
     main()
+
+# %%
