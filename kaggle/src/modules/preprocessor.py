@@ -1,16 +1,25 @@
 import pandas as pd
-import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
 from utils.normalizer import TextNormalizer, AdditionalNormalizer
 
 
 class Preprocessor:
     @staticmethod
+    def normalize_keyword(X_raw_series: pd.Series) -> pd.Series:
+        """keyword カラムの前処理を行うメソッド"""
+        X_processed_series = (
+            X_raw_series.copy()
+            .apply(AdditionalNormalizer.replace_percent_encording_space)
+            .apply(AdditionalNormalizer.normalize_by_nltk)
+            .apply(TextNormalizer.remove_stopwords)
+        )
+        return X_processed_series
+
+    @staticmethod
     def normalize_text(X_raw_series: pd.Series) -> pd.Series:
         """text カラムの前処理を行うメソッド"""
-        X_processed_series = X_raw_series.copy()
         X_processed_series = (
-            X_raw_series.apply(TextNormalizer.normalize_case)
+            X_raw_series.copy()
+            .apply(TextNormalizer.normalize_case)
             .apply(TextNormalizer.remove_newlines)
             .apply(TextNormalizer.remove_stopwords)
             .apply(TextNormalizer.remove_links)
@@ -26,9 +35,9 @@ class Preprocessor:
     @staticmethod
     def normalize_location(X_raw_series: pd.Series) -> pd.Series:
         """location カラムの前処理を行うメソッド"""
-        X_processed_series = X_raw_series.copy()
         X_processed_series = (
-            X_raw_series.apply(TextNormalizer.remove_numbers_and_symbols)
+            X_raw_series.copy()
+            .apply(TextNormalizer.remove_numbers_and_symbols)
             .apply(AdditionalNormalizer.replace_percent_encording_space)
             .apply(
                 AdditionalNormalizer.normalize_country_name
