@@ -1,5 +1,6 @@
 # %%
 # ライブラリのインポート
+import time
 import numpy as np  # 線形代数
 import pandas as pd  # データ処理、CSVファイルのI/O（例：pd.read_csv）
 from sklearn.ensemble import RandomForestClassifier
@@ -20,9 +21,9 @@ PREPROCESSED_PATH = "../output/preprocessed.csv"
 
 
 class Mode:
-    TEST_ONCE = "test_once"
-    TEST_CROSS_VALIDATION = "test_cross_validation"
-    SUBMISSION = "submission"
+    TEST_ONCE = "簡易テスト"
+    TEST_CROSS_VALIDATION = "交差検証"
+    SUBMISSION = "提出用"
 
 
 CURRENT_MODE = Mode.TEST_CROSS_VALIDATION
@@ -54,7 +55,7 @@ class FeatureExtractor:
         self.location_encoder = OneHotEncoder(
             handle_unknown="ignore", sparse_output=False
         )
-        self.tfidf_vectorizer = TfidfVectorizer(max_features=1000)
+        self.tfidf_vectorizer = TfidfVectorizer(max_features=500)
 
     def fit(self, X: pd.DataFrame) -> None:
         self.keyword_vectorizer.fit(X["keyword"])
@@ -81,17 +82,22 @@ def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
         accuracy = accuracy_score(y_val, y_pred)
         print(f"精度 (Test Once): {accuracy:.8f}")
 
-    elif mode == Mode.TEST_CROSS_VALIDATION:
+    elif mode == Mode.TEST_CROSS_VALIDATION or mode == Mode.SUBMISSION:
         scores = cross_val_score(clf, X, y, cv=5, scoring="accuracy")
         print(f"交差検証スコア: {scores}")
         print(f"精度平均: {scores.mean():.8f}")
-        # 全データで再学習
-        clf.fit(X, y)
+
+        if mode == Mode.SUBMISSION:
+            # 全データで再学習
+            clf.fit(X, y)
 
     return clf
 
 
 def main():
+    # 時間計測開始
+    start_time = time.time()
+
     # 1. データの読み込み
     print("データを読み込んでいます...")
     df_train = load_data(TRAIN_DATA_PATH)
@@ -134,6 +140,11 @@ def main():
         submission = pd.DataFrame({"id": df_test["id"], "target": y_pred_prod})
         submission.to_csv(SUBMISSION_PATH, index=False)
         print(f"提出ファイルを保存しました: {SUBMISSION_PATH}")
+
+    # 時間計測終了
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"処理時間: {elapsed_time:.2f} 秒")
 
 
 if __name__ == "__main__":
