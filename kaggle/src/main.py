@@ -49,7 +49,10 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
 class FeatureExtractor:
     def __init__(self):
         self.keyword_vectorizer = CountVectorizer(
-            binary=True, tokenizer=lambda x: x.split(), token_pattern=None
+            binary=True,  # 出現有無のみを 0/1 で扱う
+            tokenizer=lambda x: x.split(),
+            token_pattern=None,
+            min_df=20,  # ここが足切りライン（例: 20件未満は無視）
         )
         self.location_encoder = OneHotEncoder(
             handle_unknown="ignore", sparse_output=False
