@@ -1,5 +1,6 @@
 import re
 import pycountry  # https://github.com/pycountry/pycountry
+from nltk.stem import PorterStemmer
 from utils.dictionary import Dictionary
 
 
@@ -79,8 +80,16 @@ class AdditionalNormalizer:
         return text.replace("%20", " ")
 
     @staticmethod
+    def normalize_by_nltk(text: str) -> str:
+        """nltk を使って統一的な単語表記で正規化する関数"""
+        stemmer = PorterStemmer()
+        parts = text.split()
+        text = " ".join([stemmer.stem(part) for part in parts])
+        return text
+
+    @staticmethod
     def normalize_country_name(text: str) -> str:
-        """pycountry を使って統一てきな国名表記で正規化する関数"""
+        """pycountry を使って統一的な国名表記で正規化する関数"""
         # 純粋に国名を検索
         parts = text.split()
         for part in parts:

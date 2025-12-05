@@ -37,11 +37,13 @@ y = df["target"].copy()  # ターゲット変数
 # "text" カラムと "location" カラムのデータクリーニング
 X_processed = X_raw.copy()
 X_processed["text"] = Preprocessor.normalize_text(X_raw["text"])
+X_processed["keyword"] = Preprocessor.normalize_keyword(X_raw["keyword"])
 X_processed["location"] = Preprocessor.normalize_location(X_raw["location"])
 
 # 前処理後のデータをもと csv の各カラムを置換する形で csv 出力
 csv_df = df.copy()
 csv_df["text"] = X_processed["text"]
+csv_df["keyword"] = X_processed["keyword"]
 csv_df["location"] = X_processed["location"]
 csv_df.to_csv("../output/preprocessed.csv", index=False)
 
