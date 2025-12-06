@@ -44,7 +44,7 @@ class TextNormalizer:
     def replace_links(text: str) -> str:
         """URL (http://~, https://~) を置換する関数"""
         text = re.sub(
-            r"http[s]?://\S+", "URLTEXT", text
+            r"http[s]?://\S+", "__URLTEXT__", text
         )  # TF-IDF ベクトル化の妨げになるため削除
         return text
 
@@ -60,8 +60,10 @@ class AdditionalNormalizer:
 
     @staticmethod
     def remove_mentions(text: str) -> str:
-        """メンション (@username) を除去する関数"""
-        text = re.sub(r"@\w+", "", text)  # メンションを削除
+        """メンション (@username) を一つにまとめつつ置換する関数"""
+        # すべての @username をプレースホルダーに置換、"__MENTION__" が連続している場合は 1 つにまとめる
+        text = re.sub(r"@\w+", "__MENTION__", text)
+        text = re.sub(r"(?:__MENTION__\s*)+", "__MENTION__ ", text)
         text = re.sub(r"\s+", " ", text)  # 連続する空白を1つに統合
         text = text.strip()  # 先頭・末尾の空白を削除
         return text
@@ -97,19 +99,6 @@ class AdditionalNormalizer:
                 countries = pycountry.countries.search_fuzzy(part)
                 if countries:
                     country = next(iter(countries), None)
-                    return country.name
-            except LookupError:
-                continue
-
-        # 国名でマッチしなかった場合は州・市名でマッチを試みる
-        for part in parts:
-            try:
-                subdivisions = pycountry.subdivisions.partial_match(part)
-                if subdivisions:
-                    subdivision = next(iter(subdivisions), None)
-                    country = pycountry.countries.search_fuzzy(
-                        alpha_2=subdivision.country_code
-                    )
                     return country.name
             except LookupError:
                 continue

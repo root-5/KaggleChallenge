@@ -25,7 +25,7 @@ class Mode:
     SUBMISSION = "提出用"
 
 
-CURRENT_MODE = Mode.SUBMISSION
+CURRENT_MODE = Mode.TEST_CROSS_VALIDATION
 
 
 def load_data(path: str) -> pd.DataFrame:
@@ -42,7 +42,6 @@ def compress_rare_locations(X: pd.DataFrame, min_count: int = 20) -> pd.DataFram
 
     location_counts = X["location"].value_counts()
     rare_locations = location_counts[location_counts < min_count].index
-
     X.loc[X["location"].isin(rare_locations), "location"] = "__RARE__"
     return X
 
@@ -67,7 +66,7 @@ class FeatureExtractor:
             binary=True,  # 出現有無のみを 0/1 で扱う
             tokenizer=lambda x: x.split(),
             token_pattern=None,
-            min_df=30,  # ここが足切りライン（例: 20件未満は無視）
+            min_df=20,  # レアカテゴリの足切りライン
         )
         self.location_encoder = OneHotEncoder(
             handle_unknown="ignore", sparse_output=False
@@ -88,7 +87,8 @@ class FeatureExtractor:
 
 def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
     """モデルの学習と評価"""
-    clf = RandomForestClassifier(random_state=42)
+    # n_jobs=-1 ですべてのCPUコアを使用
+    clf = RandomForestClassifier(random_state=42, n_jobs=-1)
 
     if mode == Mode.TEST_ONCE:
         X_train, X_val, y_train, y_val = train_test_split(
@@ -100,7 +100,15 @@ def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
         print(f"精度 (Test Once): {accuracy:.8f}")
 
     elif mode == Mode.TEST_CROSS_VALIDATION or mode == Mode.SUBMISSION:
-        scores = cross_val_score(clf, X, y, cv=5, scoring="accuracy")
+        # cross_val_score 自体にも n_jobs を指定して並列評価する
+        scores = cross_val_score(
+            clf,
+            X,
+            y,
+            cv=5,
+            scoring="accuracy",
+            n_jobs=-1,  # 全コア使用
+        )
         print(f"交差検証スコア: {scores}")
         print(f"精度平均: {scores.mean():.8f}")
 
