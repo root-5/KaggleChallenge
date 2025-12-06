@@ -34,7 +34,7 @@ def load_data(path: str) -> pd.DataFrame:
     return df.fillna("")
 
 
-def compress_rare_locations(X: pd.DataFrame, min_count: int = 20) -> pd.DataFrame:
+def compress_rare_locations(X: pd.DataFrame, min_count: int) -> pd.DataFrame:
     """location カラムの低頻度カテゴリを "__RARE__" にまとめる関数"""
     X = X.copy()
     if "location" not in X.columns:

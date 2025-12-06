@@ -2,6 +2,7 @@ import re
 import pycountry  # https://github.com/pycountry/pycountry
 from nltk.stem import PorterStemmer
 from utils.dictionary import Dictionary
+import functools
 
 
 class TextNormalizer:
@@ -90,17 +91,21 @@ class AdditionalNormalizer:
         return text
 
     @staticmethod
+    @functools.lru_cache(maxsize=1024)
+    def _search_country_fuzzy_cached(part: str) -> str | None:
+        """pycountry の fuzzy 検索結果をキャッシュする内部関数"""
+        try:
+            countries = pycountry.countries.search_fuzzy(part)
+        except LookupError:
+            return None
+
+        return countries[0].name
+
+    @staticmethod
     def normalize_country_name(text: str) -> str:
         """pycountry を使って統一的な国名表記で正規化する関数"""
-        # 純粋に国名を検索
-        parts = text.split()
-        for part in parts:
-            try:
-                countries = pycountry.countries.search_fuzzy(part)
-                if countries:
-                    country = next(iter(countries), None)
-                    return country.name
-            except LookupError:
-                continue
-
-        return ""  # マッチしなかった場合
+        for part in text.split():
+            country_name = AdditionalNormalizer._search_country_fuzzy_cached(part)
+            if country_name:
+                return country_name
+        return ""
