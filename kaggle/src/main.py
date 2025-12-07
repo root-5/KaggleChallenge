@@ -89,7 +89,7 @@ def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
     """モデルの学習と評価"""
     # n_jobs=-1 ですべてのCPUコアを使用
     clf = RandomForestClassifier(
-        max_depth=15,  # 木の深さ、真っ先に変更を試みる対象
+        max_depth=20,  # 木の深さ、真っ先に変更を試みる対象
         min_samples_leaf=1,  # 葉ノードの最小サンプル数、真っ先に変更を試みる対象
         n_estimators=100,  # 決定木の数、増やせば大抵精度向上するが、計算コストと相談
         max_features="sqrt",  # 各決定木で使用する特徴量の数、基本デフォルトで十分だが特徴量多い（数千～）場合は調整を検討
