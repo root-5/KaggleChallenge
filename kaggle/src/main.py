@@ -3,7 +3,7 @@ import time
 import numpy as np  # 線形代数
 import pandas as pd  # データ処理、CSVファイルのI/O（例：pd.read_csv）
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from sklearn.metrics import accuracy_score
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.preprocessing import OneHotEncoder
@@ -23,6 +23,7 @@ class Mode:
     TEST_ONCE = "簡易テスト"
     TEST_CROSS_VALIDATION = "交差検証"
     SUBMISSION = "提出用"
+    TUNING = "チューニング"
 
 
 CURRENT_MODE = Mode.TEST_CROSS_VALIDATION
@@ -87,11 +88,43 @@ class FeatureExtractor:
 
 def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
     """モデルの学習と評価"""
+
+    # ハイパーパラメータチューニングモード
+    if mode == Mode.TUNING:
+        print("ハイパーパラメータチューニングを開始します...")
+        # ベースとなるモデル
+        base_clf = RandomForestClassifier(random_state=42, n_jobs=1)
+
+        # 探索するパラメータの範囲
+        param_grid = {
+            "n_estimators": [300, 500],
+            "max_depth": [None, 20, 50],  # None（無制限）も含めて比較する
+            "min_samples_split": [2, 5, 10],
+            "min_samples_leaf": [1, 2, 4],
+            "max_features": ["sqrt"],
+        }
+
+        # グリッドサーチの設定
+        grid_search = GridSearchCV(
+            estimator=base_clf,
+            param_grid=param_grid,
+            cv=5,
+            scoring="accuracy",
+            n_jobs=-1,  # 並列処理
+            verbose=1,  # 進捗表示
+        )
+        grid_search.fit(X, y)
+
+        print(f"最良パラメータ: {grid_search.best_params_}")
+        print(f"最良スコア: {grid_search.best_score_:.8f}")
+        return grid_search.best_estimator_
+
+    # 通常の学習・評価モード
     # n_jobs=-1 ですべてのCPUコアを使用
     clf = RandomForestClassifier(
         max_depth=20,  # 木の深さ、真っ先に変更を試みる対象
         min_samples_leaf=1,  # 葉ノードの最小サンプル数、真っ先に変更を試みる対象
-        n_estimators=100,  # 決定木の数、増やせば大抵精度向上するが、計算コストと相談
+        n_estimators=500,  # 決定木の数、増やせば大抵精度向上するが、計算コストと相談
         max_features="sqrt",  # 各決定木で使用する特徴量の数、基本デフォルトで十分だが特徴量多い（数千～）場合は調整を検討
         class_weight=None,  # クラス（モデルの予測対象）が不均衡な場合に有効
         random_state=42,
@@ -175,8 +208,7 @@ def main():
         print(f"提出ファイルを保存しました: {SUBMISSION_PATH}")
 
     # 時間計測終了
-    end_time = time.time()
-    elapsed_time = end_time - start_time
+    elapsed_time = time.time() - start_time
     print(f"処理時間: {elapsed_time:.2f} 秒")
 
 
