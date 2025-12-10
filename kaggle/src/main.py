@@ -1,13 +1,18 @@
 # ライブラリのインポート
+import argparse
 import time
 import numpy as np  # 線形代数
 import pandas as pd  # データ処理、CSVファイルのI/O（例：pd.read_csv）
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
+from sklearn.model_selection import (
+    train_test_split,
+    GridSearchCV,
+    cross_validate,
+    StratifiedKFold,
+)
 from sklearn.metrics import accuracy_score
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.preprocessing import OneHotEncoder
-from typing import Tuple, Any
 
 # 独自モジュールのインポート
 from modules.preprocessor import Preprocessor
@@ -17,16 +22,6 @@ TRAIN_DATA_PATH = "kaggle/input/nlp-getting-started/train.csv"
 TEST_DATA_PATH = "kaggle/input/nlp-getting-started/test.csv"
 SUBMISSION_PATH = "kaggle/output/submission.csv"
 PREPROCESSED_PATH = "kaggle/output/preprocessed.csv"
-
-
-class Mode:
-    TEST_ONCE = "簡易テスト"
-    TEST_CROSS_VALIDATION = "交差検証"
-    SUBMISSION = "提出用"
-    TUNING = "チューニング"
-
-
-CURRENT_MODE = Mode.TEST_CROSS_VALIDATION
 
 
 def load_data(path: str) -> pd.DataFrame:
@@ -90,7 +85,7 @@ def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
     """モデルの学習と評価"""
 
     # ハイパーパラメータチューニングモード
-    if mode == Mode.TUNING:
+    if mode == "tune":
         print("ハイパーパラメータチューニングを開始します...")
         # ベースとなるモデル
         base_clf = RandomForestClassifier(random_state=42, n_jobs=1)
@@ -104,11 +99,12 @@ def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
             "max_features": ["sqrt"],
         }
 
-        # グリッドサーチの設定
+        # シャッフル付きの交差検証
+        cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
         grid_search = GridSearchCV(
             estimator=base_clf,
             param_grid=param_grid,
-            cv=5,
+            cv=cv,
             scoring="accuracy",
             n_jobs=-1,  # 並列処理
             verbose=1,  # 進捗表示
@@ -131,7 +127,7 @@ def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
         n_jobs=-1,
     )
 
-    if mode == Mode.TEST_ONCE:
+    if mode == "test":
         X_train, X_val, y_train, y_val = train_test_split(
             X, y, test_size=0.2, random_state=42
         )
@@ -140,20 +136,33 @@ def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
         accuracy = accuracy_score(y_val, y_pred)
         print(f"精度 (Test Once): {accuracy:.8f}")
 
-    elif mode == Mode.TEST_CROSS_VALIDATION or mode == Mode.SUBMISSION:
-        # cross_val_score 自体にも n_jobs を指定して並列評価する
-        scores = cross_val_score(
+    elif mode == "cv" or mode == "submit":
+        # シャッフル付きの交差検証
+        cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+        cv_results = cross_validate(
             clf,
             X,
             y,
-            cv=5,
+            cv=cv,
             scoring="accuracy",
             n_jobs=-1,  # 全コア使用
+            return_train_score=True,  # 学習データのスコアも返す設定
         )
-        print(f"交差検証スコア: {scores}")
-        print(f"精度平均: {scores.mean():.8f}")
 
-        if mode == Mode.SUBMISSION:
+        train_scores = cv_results["train_score"]
+        test_scores = cv_results["test_score"]
+
+        # print(f"交差検証スコア (Train): {train_scores}")
+        print(f"Train 平均: {train_scores.mean():.8f}")
+        # print(f"交差検証スコア (Test):  {test_scores}")
+        print(f"Test 平均:  {test_scores.mean():.8f}")
+
+        # Train と Test の乖離を確認 (大きいほど過学習の疑いあり、具体的には 0.05 以下に抑えたい)
+        gap = train_scores.mean() - test_scores.mean()
+        gap_str = "OK!" if gap < 0.05 else "(過学習の疑いあり)"
+        print(f"乖離 (Train - Test): {gap:.8f} - {gap_str}")
+
+        if mode == "submit":
             # 全データで再学習
             clf.fit(X, y)
 
@@ -161,6 +170,17 @@ def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
 
 
 def main():
+    # 引数のパース
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--mode",
+        choices=["test", "cv", "submit", "tune"],
+        default="cv",
+        help="実行モード (test: 簡易テスト, cv: 交差検証, submit: 提出用, tune: チューニング)",
+    )
+    args = parser.parse_args()
+    current_mode = args.mode
+
     # 時間計測開始
     start_time = time.time()
 
@@ -169,7 +189,7 @@ def main():
     df_train = load_data(TRAIN_DATA_PATH)
 
     df_test = None
-    if CURRENT_MODE == Mode.SUBMISSION:
+    if current_mode == "submit":
         df_test = load_data(TEST_DATA_PATH)
 
     # 2. 前処理
@@ -177,7 +197,7 @@ def main():
     X_train_processed = preprocess_data(df_train)
 
     X_test_processed = None
-    if CURRENT_MODE == Mode.SUBMISSION:
+    if current_mode == "submit":
         X_test_processed = preprocess_data(df_test)
 
     y_train = df_train["target"]
@@ -192,15 +212,15 @@ def main():
     X_train_vec = extractor.transform(X_train_processed)
 
     X_test_vec = None
-    if CURRENT_MODE == Mode.SUBMISSION:
+    if current_mode == "submit":
         X_test_vec = extractor.transform(X_test_processed)
 
     # 4. モデルの学習と評価
-    print(f"モデルを学習中 ({CURRENT_MODE})...")
-    clf = train_and_evaluate(X_train_vec, y_train, CURRENT_MODE)
+    print(f"モデルを学習中 ({current_mode})...")
+    clf = train_and_evaluate(X_train_vec, y_train, current_mode)
 
     # 5. 予測と提出ファイルの作成
-    if CURRENT_MODE == Mode.SUBMISSION:
+    if current_mode == "submit":
         print("予測と提出ファイルの作成中...")
         y_pred_prod = clf.predict(X_test_vec)
         submission = pd.DataFrame({"id": df_test["id"], "target": y_pred_prod})
