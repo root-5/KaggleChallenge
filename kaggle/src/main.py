@@ -1,19 +1,15 @@
-# %%
-# ==========================================
-# 各種ライブラリと CSV データの読み込み
-# ==========================================
-# 自動リロードを有効にする設定
-# %load_ext autoreload
-# %autoreload 2
-
-# 必要なライブラリのインストール
-# %pip install pycountry
-
 # ライブラリのインポート
+import argparse
+import time
 import numpy as np  # 線形代数
 import pandas as pd  # データ処理、CSVファイルのI/O（例：pd.read_csv）
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import (
+    train_test_split,
+    GridSearchCV,
+    cross_validate,
+    StratifiedKFold,
+)
 from sklearn.metrics import accuracy_score
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.preprocessing import OneHotEncoder
@@ -21,120 +17,215 @@ from sklearn.preprocessing import OneHotEncoder
 # 独自モジュールのインポート
 from modules.preprocessor import Preprocessor
 
-# CSVデータを pandas データフレームオブジェクトとして読み込み
-df = pd.read_csv("../input/nlp-getting-started/train.csv")
-df = df.fillna("")  # 空のカラムを空文字に置換
+# 定数定義
+TRAIN_DATA_PATH = "kaggle/input/nlp-getting-started/train.csv"
+TEST_DATA_PATH = "kaggle/input/nlp-getting-started/test.csv"
+SUBMISSION_PATH = "kaggle/output/submission.csv"
+PREPROCESSED_PATH = "kaggle/output/preprocessed.csv"
 
 
-# %%
-# ==========================================
-# 前処理 > データクリーニング（Data Cleaning）
-# ==========================================
-# 元データをコピーして、特徴量とターゲットに分割
-X_raw = df[["text", "keyword", "location"]].copy()
-y = df["target"].copy()  # ターゲット変数
-
-# "text" カラムと "location" カラムのデータクリーニング
-X_processed = X_raw.copy()
-X_processed["text"] = Preprocessor.normalize_text(X_raw["text"])
-X_processed["keyword"] = Preprocessor.normalize_keyword(X_raw["keyword"])
-X_processed["location"] = Preprocessor.normalize_location(X_raw["location"])
-
-# 前処理後のデータをもと csv の各カラムを置換する形で csv 出力
-csv_df = df.copy()
-csv_df["text"] = X_processed["text"]
-csv_df["keyword"] = X_processed["keyword"]
-csv_df["location"] = X_processed["location"]
-csv_df.to_csv("../output/preprocessed.csv", index=False)
+def load_data(path: str) -> pd.DataFrame:
+    """データの読み込みと基本的な欠損値処理"""
+    df = pd.read_csv(path)
+    return df.fillna("")
 
 
-# %%
-# ==========================================
-# 前処理 > データ変換（Data Transformation）
-# ==========================================
-# keyword: スペース区切りで分割してダミー変数化 (Bag of Words)
-# binary=True にすることで、出現回数ではなく有無(0/1)になる -> ダミー変数と同じ意味
-keyword_vectorizer = CountVectorizer(
-    binary=True, tokenizer=lambda x: x.split(), token_pattern=None
-)
-keyword_vectorizer.fit(X_processed["keyword"])
-X_keyword_encoded = keyword_vectorizer.transform(X_processed["keyword"]).toarray()
+def compress_rare_locations(X: pd.DataFrame, min_count: int) -> pd.DataFrame:
+    """location カラムの低頻度カテゴリを "__RARE__" にまとめる関数"""
+    X = X.copy()
+    if "location" not in X.columns:
+        return X
 
-# location: そのままカテゴリとして One-Hot Encoding
-location_encoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
-location_encoder.fit(X_processed[["location"]])
-X_location_encoded = location_encoder.transform(X_processed[["location"]])
-
-# text: TF-IDF
-tfidf_vectorizer = TfidfVectorizer(max_features=1000)
-tfidf_vectorizer.fit(X_processed["text"])
-X_text_vectorized = tfidf_vectorizer.transform(X_processed["text"]).toarray()
+    location_counts = X["location"].value_counts()
+    rare_locations = location_counts[location_counts < min_count].index
+    X.loc[X["location"].isin(rare_locations), "location"] = "__RARE__"
+    return X
 
 
-# %%
-# ==========================================
-# 前処理 > 構造演算（Structure Operations）
-# ==========================================
-# 結合して最終的な特徴量行列を作成、pandas は表形式 (二次元) までしか扱えないため numpy で変換しなおす
-X = np.hstack([X_text_vectorized, X_keyword_encoded, X_location_encoded])
+def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
+    """共通の前処理パイプライン"""
+    X = df.copy()
+    if "text" in X.columns:
+        X["text"] = Preprocessor.normalize_text(X["text"])
+    if "keyword" in X.columns:
+        X["keyword"] = Preprocessor.normalize_keyword(X["keyword"])
+    if "location" in X.columns:
+        X["location"] = Preprocessor.normalize_location(X["location"])
+        # location のレアカテゴリをまとめる
+        X = compress_rare_locations(X, min_count=5)
+    return X
 
 
-# %%
-# ==========================================
-# モデルの学習と評価
-# ==========================================
-# テストモードの切替
-MODES = ["test_once", "test_cross_validation"]
-MODE = MODES[1]  # 使用するモードを選択
+class FeatureExtractor:
+    def __init__(self):
+        self.keyword_vectorizer = CountVectorizer(
+            binary=True,  # 出現有無のみを 0/1 で扱う
+            tokenizer=lambda x: x.split(),
+            token_pattern=None,
+            min_df=10,  # レアカテゴリの足切りライン
+        )
+        self.location_encoder = OneHotEncoder(
+            handle_unknown="ignore", sparse_output=False
+        )
+        self.tfidf_vectorizer = TfidfVectorizer(max_features=1000)
 
-# モデルの訓練、予測、精度の計算
-clf = RandomForestClassifier(random_state=42)
-if MODE == "test_once":
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+    def fit(self, X: pd.DataFrame) -> None:
+        self.keyword_vectorizer.fit(X["keyword"])
+        self.location_encoder.fit(X[["location"]])
+        self.tfidf_vectorizer.fit(X["text"])
+
+    def transform(self, X: pd.DataFrame) -> np.ndarray:
+        X_keyword = self.keyword_vectorizer.transform(X["keyword"]).toarray()
+        X_location = self.location_encoder.transform(X[["location"]])
+        X_text = self.tfidf_vectorizer.transform(X["text"]).toarray()
+        return np.hstack([X_text, X_keyword, X_location])
+
+
+def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
+    """モデルの学習と評価"""
+
+    # ハイパーパラメータチューニングモード
+    if mode == "tune":
+        print("ハイパーパラメータチューニングを開始します...")
+        # ベースとなるモデル
+        base_clf = RandomForestClassifier(random_state=42, n_jobs=-1)
+
+        # 探索するパラメータの範囲
+        param_grid = {
+            "max_depth": [100, 120, 140],  # 100 を中心に調整
+            "min_samples_leaf": [2],  # 過学習抑制ため 2 以上に設定が望ましい
+            "n_estimators": [400],  # 400 を中心に調整
+            "max_features": ["sqrt"],
+        }
+
+        # シャッフル付きの交差検証
+        cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+        grid_search = GridSearchCV(
+            estimator=base_clf,
+            param_grid=param_grid,
+            cv=cv,
+            scoring="accuracy",
+            n_jobs=-1,  # 並列処理
+            verbose=1,  # 進捗表示
+        )
+        grid_search.fit(X, y)
+
+        print(f"最良パラメータ: {grid_search.best_params_}")
+        print(f"最良スコア: {grid_search.best_score_:.8f}")
+        return grid_search.best_estimator_
+
+    # 通常の学習・評価モード
+    # n_jobs=-1 ですべてのCPUコアを使用
+    clf = RandomForestClassifier(
+        max_depth=120,  # 木の深さ、真っ先に変更を試みる対象
+        min_samples_leaf=2,  # 葉ノードの最小サンプル数、真っ先に変更を試みる対象
+        n_estimators=400,  # 決定木の数、増やせば大抵精度向上するが、計算コストと相談
+        max_features="sqrt",  # 各決定木で使用する特徴量の数、基本デフォルトで十分だが特徴量多い（数千～）場合は調整を検討
+        class_weight=None,  # クラス（モデルの予測対象）が不均衡な場合に有効
+        random_state=42,
+        n_jobs=-1,
     )
-    clf.fit(X_train, y_train)
-    y_pred = clf.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
 
-elif MODE == "test_cross_validation":
-    scores = cross_val_score(clf, X, y, cv=5, scoring="accuracy")
-    print(scores)
-    accuracy = scores.mean()
+    if mode == "test":
+        X_train, X_val, y_train, y_val = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+        clf.fit(X_train, y_train)
+        y_pred = clf.predict(X_val)
+        accuracy = accuracy_score(y_val, y_pred)
+        print(f"精度 (Test Once): {accuracy:.8f}")
 
-print(f"Accuracy: {accuracy:.2f}")
+    elif mode == "cv" or mode == "submit":
+        # シャッフル付きの交差検証
+        cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+        cv_results = cross_validate(
+            clf,
+            X,
+            y,
+            cv=cv,
+            scoring="accuracy",
+            n_jobs=-1,  # 全コア使用
+            return_train_score=True,  # 学習データのスコアも返す設定
+        )
+
+        # Train と Test の乖離を確認 (大きいほど過学習の疑いあり、具体的には 0.05 以下に抑えたい)
+        train_score_ave = cv_results["train_score"].mean()
+        test_score_ave = cv_results["test_score"].mean()
+        gap = train_score_ave - test_score_ave
+        gap_str = "OK!" if gap < 0.05 else "(過学習の疑いあり)"
+        print(f"Train 平均: {train_score_ave:.8f}")
+        print(f"Test 平均:  {test_score_ave:.8f}")
+        print(f"乖離 (Train - Test): {gap:.8f} - {gap_str}")
+
+        if mode == "submit":
+            # 全データで再学習
+            clf.fit(X, y)
+
+    return clf
 
 
-# %%
-# ==========================================
-# 本番データに対する予測
-# ==========================================
-# 本番データの読み込み
-df_prod = pd.read_csv("../input/nlp-getting-started/test.csv")
-df_prod = df_prod.fillna("")
-X_prod_raw = df_prod[["text", "keyword", "location"]].copy()
+def main():
+    # 引数のパース
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--mode",
+        choices=["test", "cv", "submit", "tune"],
+        default="cv",
+        help="実行モード (test: 簡易テスト, cv: 交差検証, submit: 提出用, tune: チューニング)",
+    )
+    args = parser.parse_args()
+    current_mode = args.mode
 
-# 前処理
-X_prod_processed = X_prod_raw.copy()
-X_prod_processed["text"] = Preprocessor.normalize_text(X_prod_raw["text"])
-X_prod_processed["location"] = Preprocessor.normalize_location(X_prod_raw["location"])
+    # 時間計測開始
+    start_time = time.time()
 
-# ベクトル変換の実行
-X_prod_keyword_encoded = keyword_vectorizer.transform(
-    X_prod_processed["keyword"]
-).toarray()
-X_prod_location_encoded = location_encoder.transform(X_prod_processed[["location"]])
-X_prod_text_vectorized = tfidf_vectorizer.transform(X_prod_processed["text"]).toarray()
+    # 1. データの読み込み
+    print("データを読み込んでいます...")
+    df_train = load_data(TRAIN_DATA_PATH)
 
-# 結合して最終的な特徴量行列を作成
-X_prod = np.hstack(
-    [X_prod_text_vectorized, X_prod_keyword_encoded, X_prod_location_encoded]
-)
+    df_test = None
+    if current_mode == "submit":
+        df_test = load_data(TEST_DATA_PATH)
 
-# 本番予測用に全データで再学習を行ってから予測
-clf.fit(X, y)
-y_pred_prod = clf.predict(X_prod)
+    # 2. 前処理
+    print("データの前処理を実行中...")
+    X_train_processed = preprocess_data(df_train)
 
-# 提出用ファイルの作成
-submission = pd.DataFrame({"id": df_prod["id"], "target": y_pred_prod})
-submission.to_csv("../output/submission.csv", index=False)
+    X_test_processed = None
+    if current_mode == "submit":
+        X_test_processed = preprocess_data(df_test)
+
+    y_train = df_train["target"]
+
+    # 前処理結果の保存 (任意)
+    X_train_processed.to_csv(PREPROCESSED_PATH, index=False)
+
+    # 3. 特徴量生成
+    print("特徴量を生成中...")
+    extractor = FeatureExtractor()
+    extractor.fit(X_train_processed)
+    X_train_vec = extractor.transform(X_train_processed)
+
+    X_test_vec = None
+    if current_mode == "submit":
+        X_test_vec = extractor.transform(X_test_processed)
+
+    # 4. モデルの学習と評価
+    print(f"モデルを学習中 ({current_mode})...")
+    clf = train_and_evaluate(X_train_vec, y_train, current_mode)
+
+    # 5. 予測と提出ファイルの作成
+    if current_mode == "submit":
+        print("予測と提出ファイルの作成中...")
+        y_pred_prod = clf.predict(X_test_vec)
+        submission = pd.DataFrame({"id": df_test["id"], "target": y_pred_prod})
+        submission.to_csv(SUBMISSION_PATH, index=False)
+        print(f"提出ファイルを保存しました: {SUBMISSION_PATH}")
+
+    # 時間計測終了
+    elapsed_time = time.time() - start_time
+    print(f"処理時間: {elapsed_time:.2f} 秒")
+
+
+if __name__ == "__main__":
+    main()

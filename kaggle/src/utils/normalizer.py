@@ -2,6 +2,7 @@ import re
 import pycountry  # https://github.com/pycountry/pycountry
 from nltk.stem import PorterStemmer
 from utils.dictionary import Dictionary
+import functools
 
 
 class TextNormalizer:
@@ -41,10 +42,10 @@ class TextNormalizer:
         return text
 
     @staticmethod
-    def remove_links(text: str) -> str:
-        """URL (http://~, https://~) を空文字に置換する関数"""
+    def replace_links(text: str) -> str:
+        """URL (http://~, https://~) を置換する関数"""
         text = re.sub(
-            r"http[s]?://\S+", "", text
+            r"http[s]?://\S+", "__URLTEXT__", text
         )  # TF-IDF ベクトル化の妨げになるため削除
         return text
 
@@ -60,8 +61,10 @@ class AdditionalNormalizer:
 
     @staticmethod
     def remove_mentions(text: str) -> str:
-        """メンション (@username) を除去する関数"""
-        text = re.sub(r"@\w+", "", text)  # メンションを削除
+        """メンション (@username) を一つにまとめつつ置換する関数"""
+        # すべての @username をプレースホルダーに置換、"__MENTION__" が連続している場合は 1 つにまとめる
+        text = re.sub(r"@\w+", "__MENTION__", text)
+        text = re.sub(r"(?:__MENTION__\s*)+", "__MENTION__ ", text)
         text = re.sub(r"\s+", " ", text)  # 連続する空白を1つに統合
         text = text.strip()  # 先頭・末尾の空白を削除
         return text
@@ -88,30 +91,21 @@ class AdditionalNormalizer:
         return text
 
     @staticmethod
+    @functools.lru_cache(maxsize=1024)
+    def _search_country_fuzzy_cached(part: str) -> str | None:
+        """pycountry の fuzzy 検索結果をキャッシュする内部関数"""
+        try:
+            countries = pycountry.countries.search_fuzzy(part)
+        except LookupError:
+            return None
+
+        return countries[0].name
+
+    @staticmethod
     def normalize_country_name(text: str) -> str:
         """pycountry を使って統一的な国名表記で正規化する関数"""
-        # 純粋に国名を検索
-        parts = text.split()
-        for part in parts:
-            try:
-                countries = pycountry.countries.search_fuzzy(part)
-                if countries:
-                    country = next(iter(countries), None)
-                    return country.name
-            except LookupError:
-                continue
-
-        # 国名でマッチしなかった場合は州・市名でマッチを試みる
-        for part in parts:
-            try:
-                subdivisions = pycountry.subdivisions.partial_match(part)
-                if subdivisions:
-                    subdivision = next(iter(subdivisions), None)
-                    country = pycountry.countries.search_fuzzy(
-                        alpha_2=subdivision.country_code
-                    )
-                    return country.name
-            except LookupError:
-                continue
-
-        return ""  # マッチしなかった場合
+        for part in text.split():
+            country_name = AdditionalNormalizer._search_country_fuzzy_cached(part)
+            if country_name:
+                return country_name
+        return ""
