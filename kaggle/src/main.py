@@ -33,9 +33,6 @@ def load_data(path: str) -> pd.DataFrame:
 def compress_rare_locations(X: pd.DataFrame, min_count: int) -> pd.DataFrame:
     """location カラムの低頻度カテゴリを "__RARE__" にまとめる関数"""
     X = X.copy()
-    if "location" not in X.columns:
-        return X
-
     location_counts = X["location"].value_counts()
     rare_locations = location_counts[location_counts < min_count].index
     X.loc[X["location"].isin(rare_locations), "location"] = "__RARE__"
@@ -51,8 +48,7 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
         X["keyword"] = Preprocessor.normalize_keyword(X["keyword"])
     if "location" in X.columns:
         X["location"] = Preprocessor.normalize_location(X["location"])
-        # location のレアカテゴリをまとめる
-        X = compress_rare_locations(X, min_count=5)
+        X = compress_rare_locations(X, min_count=5)  # location のレアカテゴリをまとめる
     return X
 
 
@@ -67,7 +63,7 @@ class FeatureExtractor:
         self.location_encoder = OneHotEncoder(
             handle_unknown="ignore", sparse_output=False
         )
-        self.tfidf_vectorizer = TfidfVectorizer(max_features=1000)
+        self.tfidf_vectorizer = TfidfVectorizer(max_features=1200)
 
     def fit(self, X: pd.DataFrame) -> None:
         self.keyword_vectorizer.fit(X["keyword"])
@@ -83,11 +79,8 @@ class FeatureExtractor:
 
 def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
     """モデルの学習と評価"""
-
-    # ハイパーパラメータチューニングモード
     if mode == "tune":
         print("ハイパーパラメータチューニングを開始します...")
-        # ベースとなるモデル
         base_clf = RandomForestClassifier(random_state=42, n_jobs=-1)
 
         # 探索するパラメータの範囲
@@ -120,7 +113,7 @@ def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
         max_depth=120,  # 木の深さ、真っ先に変更を試みる対象
         min_samples_leaf=2,  # 葉ノードの最小サンプル数、真っ先に変更を試みる対象
         n_estimators=400,  # 決定木の数、増やせば大抵精度向上するが、計算コストと相談
-        max_features="sqrt",  # 各決定木で使用する特徴量の数、基本デフォルトで十分だが特徴量多い（数千～）場合は調整を検討
+        max_features="log2",  # 各決定木で使用する特徴量の数、基本デフォルトで十分だが特徴量多い（数千～）場合は調整を検討
         class_weight=None,  # クラス（モデルの予測対象）が不均衡な場合に有効
         random_state=42,
         n_jobs=-1,
@@ -182,7 +175,6 @@ def main():
     # 1. データの読み込み
     print("データを読み込んでいます...")
     df_train = load_data(TRAIN_DATA_PATH)
-
     df_test = None
     if current_mode == "submit":
         df_test = load_data(TEST_DATA_PATH)
@@ -190,11 +182,9 @@ def main():
     # 2. 前処理
     print("データの前処理を実行中...")
     X_train_processed = preprocess_data(df_train)
-
     X_test_processed = None
     if current_mode == "submit":
         X_test_processed = preprocess_data(df_test)
-
     y_train = df_train["target"]
 
     # 前処理結果の保存 (任意)
@@ -205,7 +195,6 @@ def main():
     extractor = FeatureExtractor()
     extractor.fit(X_train_processed)
     X_train_vec = extractor.transform(X_train_processed)
-
     X_test_vec = None
     if current_mode == "submit":
         X_test_vec = extractor.transform(X_test_processed)

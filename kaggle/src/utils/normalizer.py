@@ -98,7 +98,6 @@ class AdditionalNormalizer:
             countries = pycountry.countries.search_fuzzy(part)
         except LookupError:
             return None
-
         return countries[0].name
 
     @staticmethod
