@@ -88,7 +88,7 @@ def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
     if mode == "tune":
         print("ハイパーパラメータチューニングを開始します...")
         # ベースとなるモデル
-        base_clf = RandomForestClassifier(random_state=42, n_jobs=1)
+        base_clf = RandomForestClassifier(random_state=42, n_jobs=-1)
 
         # 探索するパラメータの範囲
         param_grid = {
@@ -148,17 +148,13 @@ def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
             return_train_score=True,  # 学習データのスコアも返す設定
         )
 
-        train_scores = cv_results["train_score"]
-        test_scores = cv_results["test_score"]
-
-        # print(f"交差検証スコア (Train): {train_scores}")
-        print(f"Train 平均: {train_scores.mean():.8f}")
-        # print(f"交差検証スコア (Test):  {test_scores}")
-        print(f"Test 平均:  {test_scores.mean():.8f}")
-
         # Train と Test の乖離を確認 (大きいほど過学習の疑いあり、具体的には 0.05 以下に抑えたい)
-        gap = train_scores.mean() - test_scores.mean()
+        train_score_ave = cv_results["train_score"].mean()
+        test_score_ave = cv_results["test_score"].mean()
+        gap = train_score_ave - test_score_ave
         gap_str = "OK!" if gap < 0.05 else "(過学習の疑いあり)"
+        print(f"Train 平均: {train_score_ave:.8f}")
+        print(f"Test 平均:  {test_score_ave:.8f}")
         print(f"乖離 (Train - Test): {gap:.8f} - {gap_str}")
 
         if mode == "submit":
