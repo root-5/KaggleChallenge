@@ -52,7 +52,7 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     if "location" in X.columns:
         X["location"] = Preprocessor.normalize_location(X["location"])
         # location のレアカテゴリをまとめる
-        X = compress_rare_locations(X, min_count=10)
+        X = compress_rare_locations(X, min_count=5)
     return X
 
 
@@ -62,12 +62,12 @@ class FeatureExtractor:
             binary=True,  # 出現有無のみを 0/1 で扱う
             tokenizer=lambda x: x.split(),
             token_pattern=None,
-            min_df=20,  # レアカテゴリの足切りライン
+            min_df=10,  # レアカテゴリの足切りライン
         )
         self.location_encoder = OneHotEncoder(
             handle_unknown="ignore", sparse_output=False
         )
-        self.tfidf_vectorizer = TfidfVectorizer(max_features=500)
+        self.tfidf_vectorizer = TfidfVectorizer(max_features=1000)
 
     def fit(self, X: pd.DataFrame) -> None:
         self.keyword_vectorizer.fit(X["keyword"])
@@ -92,9 +92,9 @@ def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
 
         # 探索するパラメータの範囲
         param_grid = {
-            "max_depth": [60, 80, 100],  # 80 を中心に調整
-            "min_samples_leaf": [1], # 1 以外だと精度下がる傾向
-            "n_estimators": [300, 400, 500], # 400 を中心に調整
+            "max_depth": [100, 120, 140],  # 100 を中心に調整
+            "min_samples_leaf": [2],  # 過学習抑制ため 2 以上に設定が望ましい
+            "n_estimators": [400],  # 400 を中心に調整
             "max_features": ["sqrt"],
         }
 
@@ -117,8 +117,8 @@ def train_and_evaluate(X, y, mode: str) -> RandomForestClassifier:
     # 通常の学習・評価モード
     # n_jobs=-1 ですべてのCPUコアを使用
     clf = RandomForestClassifier(
-        max_depth=80,  # 木の深さ、真っ先に変更を試みる対象
-        min_samples_leaf=1,  # 葉ノードの最小サンプル数、真っ先に変更を試みる対象
+        max_depth=120,  # 木の深さ、真っ先に変更を試みる対象
+        min_samples_leaf=2,  # 葉ノードの最小サンプル数、真っ先に変更を試みる対象
         n_estimators=400,  # 決定木の数、増やせば大抵精度向上するが、計算コストと相談
         max_features="sqrt",  # 各決定木で使用する特徴量の数、基本デフォルトで十分だが特徴量多い（数千～）場合は調整を検討
         class_weight=None,  # クラス（モデルの予測対象）が不均衡な場合に有効
