@@ -6,6 +6,7 @@ import functools
 
 
 class TextNormalizer:
+    """基本的なテキスト正規化を行うクラス、汎用的に使用するもの"""
     @staticmethod
     def normalize_case(text: str) -> str:
         """テキストを小文字に正規化する関数"""
@@ -51,6 +52,7 @@ class TextNormalizer:
 
 
 class AdditionalNormalizer:
+    """特殊なテキスト正規化を行うクラス、特定のタスクやデータセットに応じて使用するもの"""
     @staticmethod
     def remove_unreadable_characters(text: str) -> str:
         """ のような読み取り不可能文字を含む単語を削除する関数"""
